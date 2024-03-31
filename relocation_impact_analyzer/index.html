@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<!--
+Title: Workflow Steps Interface
+Description: This HTML file serves as the main user interface for the Relocation Impact Analyzer, a web-based application designed for managing and analyzing project data. The interface guides users through a series of workflow steps, including project management, data management, data processing, graphical analysis, and report management. The application utilizes HTML for structuring the interface, CSS for styling, and JavaScript for adding interactivity and dynamic content manipulation. This interface supports tasks such as creating new projects, loading and managing existing projects, uploading and managing data files, generating analysis data, creating graphical analyses, and more.
+
+Dependencies:
+- Google Maps API for address to latitude/longitude conversion and commute data generation.
+- Matplotlib and Cartopy for generating and displaying geographical analyses and plots.
+- Pandas for data management and processing.
+
+Features:
+- Modular workflow steps for organized project management and data analysis.
+- Dynamic content loading and updates without page refresh using JavaScript.
+- Modal dialogs for detailed settings and configurations.
+- Visual indicators (e.g., green checkmarks, rotating arrows) for process completion and status updates.
+- Client-side form validation for immediate user feedback.
+- Responsive design for usability across various devices (implementation recommended).
+
+Security Notes:
+- This application in pre-alpha release form does not contain many necessary security featurs.
+- Do not run this application in an internet facing deployment.
+
+Accessibility and Compliance:
+- Follows basic principles for web accessibility (WCAG guidelines recommended for full compliance).
+- Includes `alt` attributes for images and uses semantic HTML elements for improved accessibility and SEO.
+
+Author: Victor Foulk
+License: MIT License
+Date: 2024-03-15
+Version: 0.0.1 Pre-Alpha
+-->
+
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Relocation Analysis</title>
+    <meta name="description" content="A web-based application interface for managing and analyzing project data related to employee relocation.">
+    <meta name="author" content="Victor Foulk">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon"> <!-- Path to your favicon -->
+    <style>
+        .step {
+            width: 95%;
+            min-height: 200px;
+            background-color: #f2f2f2;
+            border: 1px solid #ccc;
+            margin: 10px;
+            padding: 20px;
+            text-align: left;
+            font-size: 18px;
+            line-height: 1;
+            border-radius: 10px;
+            
+        }
+        .contentbox {
+            width: 100%;
+            text-align: left;
+            font-size: 18px;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: row;
+        }
+        .stepicon {
+            display: block;
+            margin-right: 10px;
+            border: 1px solid black;
+            border-radius: 10px;
+            padding: 0px;
+            position: relative;
+        }
+        .controlbox {
+            display: block;
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid black;
+            border-radius: 10px;
+            position: relative;
+        }
+        .controlbox button, .controlbox input, .controlbox select{
+            width: 100%;
+            box-sizing: border-box;
+        }        
+        .controlbox button:hover, .controlbox input[type="submit"]:hover{
+            background-color: #125fd3;
+            color: white;
+        }
+        .stop:hover {
+            background-color: red !important;
+            color: white;
+        }
+        h1 {
+            text-align: left;
+            width: 100%;
+            margin-top: 0px;
+        }
+        .notice {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        .modal {
+            display: none;
+            left: 0;
+            top: 0;
+            position: fixed;
+            z-index: 1;
+            width: 100%;
+            min-height: 100%;
+            overflow: initial;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #ccc;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;        
+            height: 80%;
+            margin: auto;
+            overflow-y: auto;
+            display: block;
+            position: absolute;
+        } 
+        .close {
+            color: #fff;
+            font-weight: bold;
+            background-color: rgb(151, 5, 5);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            padding: 5px;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #project_vars_form label, #system_settings_form label{
+            min-width: 300px;
+            margin-right: 20px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        #project_vars_form i {
+            margin-left: 15px;
+            display: inline-block;
+            max-width: 50%;
+            vertical-align: middle;
+        }
+        #system_settings_form input[type="text"] {
+            width: 50%;
+        }
+        #upload_data_file label{
+            margin-right: 20px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        #upload_data_file select{
+            margin-bottom: 10px;
+            width: auto;
+            display: inline-block;
+        }
+
+
+        .if_project_loaded {
+            display: none;
+        }
+        .read-only {
+            background-color: #aaa;
+        }
+        table {
+        width: 100%;
+        border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .additional {
+            color : #888;
+        }
+        .greenarrow {
+            color: hotpink;
+            display: block;            
+        }
+
+        .greencheck {
+            color: green;
+            font-size: 50px;
+            text-decoration: none;
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            display: block;
+            background-color: #f2f2f2;
+            border: 1px solid black;
+            border-radius: 10px;
+            padding: 0px;
+            margin: 5px;
+            line-height: 1em;           
+        }
+
+        .graphics {
+            width: 95%;
+            min-height: 200px;
+            background-color: #f2f2f2;
+            border: 1px solid #ccc;
+            margin: 10px;
+            padding: 20px;
+            text-align: left;
+            font-size: 18px;
+            line-height: 1;
+            border-radius: 10px;
+        }
+        /* .plot_container, display blocks side by side, no more than half width of parent, with 10px margin */
+        .container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .plot-container {
+            width: 45%;
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid black;
+            border-radius: 10px;
+            text-align: center;
+            position: relative;
+        }
+        /* plot container img, max width 100%, max height 100% */
+        .plot-container img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .plot-container h2 {
+            margin-bottom: 5px;
+        }
+        .plot-description {
+            font-size: 16px;
+            font-style: italic;
+            display: block;
+        }
+                /* graphs viewing modal */
+        /* Style the image container */
+        .image-container {
+            cursor: pointer;
+        }
+
+        /* The Modal (background) */
+        .img-modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            padding-top: 100px; /* Location of the box */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.9); /* Black w/ opacity */
+        }
+
+        /* Modal Content (Image) */
+        .img-modal-content {
+            margin: auto;
+            display: block;
+            width: auto;
+            height: auto;
+            max-width: 80vw;
+            max-height: 80vh;
+        }
+
+        /* Caption of Modal Image (Image Text) - Same Width as the Image */
+        #img-caption {
+            margin: auto;
+            display: block;
+            width: 80%;
+            max-width: 700px;
+            text-align: center;
+            color: #ccc;
+            padding: 10px 0;
+            height: 150px;
+            font-size: large;
+        }
+
+        /* Add Animation - Zoom in the Modal */
+        .img-modal-content, #img-caption {  
+            animation-name: zoom;
+            animation-duration: 0.6s;
+        }
+
+        @keyframes zoom {
+            from {transform:scale(0)} 
+            to {transform:scale(1)}
+
+        }
+
+        /* The Close Button */
+        .img-close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .img-close:hover,
+        .img-close:focus {
+            color: #bbb;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* 100% Image Width on Smaller Screens */
+        @media only screen and (max-width: 700px){
+            .modal-content {
+                width: 100%;
+            }
+        }
+        /* view image large icon, place in top right corner of containing div, positioned relative*/
+        .view-large {
+            position: absolute;
+            top: 0px;
+            right: 0px;
+            display: block;
+            padding: 0px;
+            margin: 5px;
+            line-height: 1em;
+            text-align: center;
+            cursor: pointer;
+        }
+        .dataframe {
+            border: '1px solid black';
+            border-collapse: 'collapse';
+            width: 100%;
+        }
+        .dataframe th, .dataframe td {
+            border: '1px solid black';
+            text-align: left;
+        }
+        .dataframe th {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: black;
+            color: white;
+            font-weight: bold;
+            border-right: 0px;;
+        }
+        .dataframe th:not(:first-child) {
+            border-left: 1px solid #fff;
+        }
+        /* get last child */
+        .dataframe th:last-child {
+            border-right: 1px solid #000;
+        }
+    </style>
+    <script>
+        function getPathFromUrl(url) {
+         return url.split("?")[0];
+        }
+        var aphase = 0;
+        // make a rotation array for css rotate in increments of 45 degrees
+        var rotations = [0, 45, 90, 135, 180, 225, 270, 315];
+        // make a rotation index
+        var rotation_index = 0;
+        // make a function to rotate the green check
+        function rotate_green_arrow(){
+            // get all of the the green check elements
+            var gc = document.querySelectorAll('.greenarrow');
+            // if there is no green check element, return
+            if (gc.length === 0){
+                return;
+            }
+            // rotate the green check elements
+            for (var i = 0; i < gc.length; i++){
+                gc[i].style.transform = 'rotate(' + rotations[rotation_index] + 'deg)';
+            }
+            // increment the rotation index
+            rotation_index++;
+            // if the rotation index is greater than len rotations, reset it to 0
+            if (rotation_index >= rotations.length){
+                rotation_index = 0;
+            }
+            
+            // call the function again in 500ms
+            setTimeout(rotate_green_arrow, 500);
+        }
+
+        // insert project variables into template {{PROJECT_VARIABLES}}
+
+    </script>
+</head>
+    <body>
+        <div class="step" id="Project_Management">
+            <h1>Start Project</h1>
+            <!-- insert a "Stop Server" button, aligned to the right floating so as to not interrupt flow of content, that posts to the top url minus query strings, and has the payload do_stop_server=true-->
+            <div style="float: right; margin-right: 10px; position: relative; display: inline;">
+                
+            </div>
+            <div class="contentbox">
+                <div class="stepicon">
+                    <a href="/"><img src="images/step1.png" alt="Step 1"></a>
+                </div>
+                <div id="createnew" class="controlbox">
+                    <b>Manage System Settings:</b> <br/>
+                    <button id="system_settings">&#9881; System Settings</button><br/>
+                    <span class='notice'>{{FIRST_RUN_WARNING}}</span>
+                    <form method="post" action="/">
+                        <input type="hidden" name="do_stop_server" value="true">
+                        <input type="submit" value="Stop Server" class="stop">
+                    </form>
+                    <hr>
+                    <span id="createnew_span">
+                    <b>Create New Project:</b> <br/>
+                    <input type="text" id="projectname">
+                    <br/>
+                    <button id="create_project">Create</button></span>
+                </div>
+                <div id="existing" class="controlbox">
+                    <b>Manage Existing Projects:</b> <br/>
+                    <select name="projectlist" id="projectlist">
+                        {{EXISTING_PROJECT_LIST}}
+                    </select>
+                    <br/>
+                    <button id="load_project">Load Project</button><br/>
+                    <!-- Feature implemented, but unecessary <button id="flush_project">Flush Project Data</button><br/>-->
+                    <button id="delete_project">Delete Project</button><br/><br/>
+                    <button id="edit_project" class="if_project_loaded">Edit Project Configuration</button>
+                </div>
+                <div id="status" class="controlbox" style="min-width: 25%;">
+                    <span>
+                        <b>Loaded Project Name:</b> {{PROJECT_NAME}} <br>
+                        <b>Project Analysis Phase:</b> {{PROJECT_PHASE}}
+                        <br/><br/>
+                    </span>
+                    <span><b>System Messages:</b></span><br/>
+                    <span class="notice">
+                        {{STATUS_MESSAGE}}<br/>
+                    </span> 
+                    <span class="error">
+                        {{STATUS_ERROR}}
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="step" id="Data_Management">
+            <h1>Load Data</h1>
+            <div class="contentbox">
+                <div class="stepicon">
+                    <img src="images/step2.png" alt="Step 2">
+                </div>
+                <div class="controlbox">
+                    <span><b>Upload a Data File</b></span><br>
+                    <form id="upload_data_file" method="post" enctype="multipart/form-data">
+                        <input type="hidden" id="do_upload_data_file" name="do_upload_data_file" value="true">
+                        <input type="hidden" id="project_name" name="project_name" value="{{PROJECT_NAME}}">
+                        <label for="data_file_type">Data File Type:</label>
+                        <select name="data_file_type" id="data_file_type">
+                            <option value="employee_addresses" selected>Employee Addresses</option>
+                            <option value="office_addresses">Offices Addresses</option>
+                            <option value="employee_gps">Employee Addresses as Lat/Long</option>
+                            <option value="office_gps">Office Addresses as Lat/Long</option>
+                            <option value="employee_gps_fuzzed">Anonymized (Fuzzed) Employee Lat/Long</option>
+                            <option value="commute_data">Processed Commute Data</option>
+                        </select><br/>
+                        <input type="file" name="data_file" id="data_file"><br/>
+                        <span>{{FILE_UPLOADS_NEEDED}} File must be a <a id="csv_format_modal" style="cursor: pointer; text-decoration: underline;">properly formatted</a> CSV file.  <br> File will be renamed according to type upon load.</span>
+                        <input type="submit" value="Upload" id="upload_data_file_submit">
+                    </form>
+                </div>
+                <div class="controlbox">
+                    <span><b>Manage Existing Data Files</b></span><br>
+                    <select name="data_files_list" id="data_files_list">
+                        {{DATA_FILES}}
+                    </select><br/>
+                    <button id="view_data_file">View Selected File</button><br/>
+                    <button id="delete_data_file">Delete Selected File</button><br/>
+                </div>
+            </div>    
+        </div>
+        <div class="step" id="Data_Processing">
+            <h1>Generate Analysis Data</h1>
+            <div class="contentbox">
+                <div class="stepicon">
+                    <img src="images/step3.png" alt="Step 3">
+                </div>
+                <div class="controlbox" id="control_convert_addresses">
+                    <span><b>Convert Addresses to Lat/Long</b></span><br>
+                    <span>Uses Google Maps API to<br/>convert addresses to lat/long.<br/>Stores result in .csv data file.<br/>API rate limit, expect to wait.</span>
+                    <form id="convert_addresses_form" method="post">
+                        <input type="hidden" id="do_convert_addresses_latlong" name="do_convert_addresses_latlong" value="true">
+                        <input type="hidden" id="project_name" name="project_name" value="{{PROJECT_NAME}}">
+                        <input type="submit" value="Run Conversion">
+                    </form>
+                    {{CONVERT_ADDRESSES_STATUS}}
+                </div>
+                <div class="controlbox" id="control_fuzz_employee_gps">
+                    <span><b>Fuzz Employee Lat/Long</b></span><br>
+                    <span>A privacy measure.<br/>Adds random variability to<br/>lat/long to help mask real<br>addresses in publication.</span>
+                    <form id="fuzz_gps_form" method="post">
+                        <input type="hidden" id="do_fuzzing" name="do_fuzzing" value="true">
+                        <input type="hidden" id="project_name" name="project_name" value="{{PROJECT_NAME}}">
+                        <input type="submit" value="Run Fuzzing">
+                    </form>
+                    {{FUZZ_GPS_STATUS}}
+                </div>
+                <div class="controlbox" id="control_generate_commute">
+                    <span><b>Generate Commute Data</b></span><br>
+                    <span>Uses Google Map API<br/>to calculate morning/evening<br/>commutes, to support all else.<br/>API rate limit, expect to wait.</span>
+                    <form id="do_gen_commute_form" method="post">
+                        <input type="hidden" id="do_gen_commute" name="do_gen_commute" value="true">
+                        <input type="hidden" id="project_name" name="project_name" value="{{PROJECT_NAME}}">
+                        <input type="submit" value="Generate Commutes">
+                    </form>
+                    {{GENERATE_COMMUTE_STATUS}}
+                </div>
+                <div class="controlbox" id="update_calcs">
+                    <span><b>Update Derivative Data</b></span><br>
+                    <span>Re-runs the cost and emissions<br/>calculations without rerunning<br/> Google calls. Used if<br/>parameters change.</span>
+                    <form id="do_update_calcs_form" method="post">
+                        <input type="hidden" id="do_update_calcs" name="do_update_calcs" value="true">
+                        <input type="hidden" id="project_name" name="project_name" value="{{PROJECT_NAME}}">
+                        <input type="submit" value="Update Calculations">
+                    </form>
+                    {{UPDATE_COMMUTE_CALCUATIONS_STATUS}}
+                </div> 
+            </div>
+        </div>
+        <div class="step" id="Graphical_Analysis">
+            <h1>Graphical Analyses</h1>
+            <div class="contentbox">
+                <div class="stepicon">
+                    <img src="images/step4.png" alt="Step 4">
+                </div>
+                <div class="controlbox" id="control_gen_graphs">
+                    <span><b>Generate Graphs</b></span><br>
+                    <span>Generates graphical<br/>analyses of the data.</span>
+                    <form id="do_gen_graphs_form" method="post">
+                        <input type="hidden" id="do_gen_graphs" name="do_gen_graphs" value="true">
+                        <input type="hidden" id="project_name" name="project_name" value="{{PROJECT_NAME}}">
+                        <input type="submit" value="Generate Graphs">
+                    </form>
+                    {{GENERATE_GRAPHS_STATUS}}
+                </div>
+            </div>
+            <div class="graphics">
+                <div class="container">
+                    {{GRAPHS}}                                       
+                </div>
+            </div>
+        </div>
+
+        <div class="step" id="Report_Management">
+            <h1>Data Tables</h1>
+            <div class="contentbox">
+                <div class="stepicon">
+                    <img src="images/step5.png" alt="Step 4">
+                </div>
+                <div class="controlbox" id="control_gen_tables">
+                    <span><b>Generate Tables</b></span><br>
+                    <span>Generates tabular<br/>analyses of the data.</span>
+                    <form id="do_gen_tables_form" method="post">
+                        <input type="hidden" id="do_gen_tables" name="do_gen_tables" value="true">
+                        <input type="hidden" id="project_name" name="project_name" value="{{PROJECT_NAME}}">
+                        <input type="submit" value="Generate Tables">
+                    </form>
+                    {{GENERATE_TABLES_STATUS}}
+                </div>
+            </div>
+            <div class="tables">
+                <div class="container">
+                    {{TABLES}}                                       
+                </div>
+            </div>
+        </div>
+
+        <!----------------------------------------------------------------------->
+
+        <!-- Modal Content -->
+        <div id="system_settings_dialog" class="modal">
+            <div id="systems_settings_dialog_content" class="modal-content">
+                <span class="close">&times;</span>
+                <h2>System Settings</h2>
+                <form id="system_settings_form" method="post">
+                    <input type="hidden" name="update_system_vars" value="true">
+                    <label for="default_projects_directory">Default Project Working Directory:</label>
+                    <input type="text" id="default_projects_directory" name="default_projects_directory" value="{{DEFAULT_PROJECTS_DIRECTORY}}"><br>
+                    <label for="global_gmaps_api_key">Global Google Maps API Key:</label>
+                    <input type="text" id="global_gmaps_api_key" name="global_gmaps_api_key" value="{{GLOBAL_GMAPS_API_KEY}}"><br>
+                    <span style="text-align: right; width: 100%; display: block;"><input type="submit" value="Save"></span>
+                </form>
+            </div>
+        </div>
+        <div id="project_vars" class="modal">
+            <div id="project_vars_content" class="modal-content">
+                <span class="close">&times;</span>
+                <!--  a form to edit project variables -->
+
+                <form id="project_vars_form" method="post">
+                    <h2>Project Variables:</h2>
+                    <input type="hidden" name="update_project_vars" value="true">
+                    <label for="project_name_ro">Project Name:</label>
+                    <input type="text" id="project_name_ro" name="project_name_ro" value="{{PROJECT_NAME}}" readonly class="read-only">
+                    <i>Project name.</i><br>
+                    <label for="project_directory">Project Directory:</label>
+                    <input type="text" id="project_directory" name="project_directory" value="{{PROJECT_DIRECTORY}}">
+                    <i>Local filesystem storage location for project data.</i>
+                    <!--<label for="sources">Source Addresses:</label> -->
+                    <input type="hidden" id="sources" name="sources" value="{{SOURCES}}" readonly class="read-only"><br>
+                    <!--<label for="destinations">Destination Addresses:</label>-->
+                    <input type="hidden" id="destinations" name="destinations" value="{{DESTINATIONS}}" readonly class="read-only">
+                    <label for="use_gps_fuzzing">Use Lat/Long Fuzzing:</label>
+                    <input type="checkbox" id="use_gps_fuzzing" name="use_gps_fuzzing" {{USE_GPS_FUZZING}}>
+                    <i>Fuzzing applies random variation to the Latitude and Longitude of employee addresses, used for privacy preservation upon publication.</i><br>
+                    <label for="gps_fuzz_factor">Lat/Long Fuzz Factor:</label>
+                    <input type="text" id="gps_fuzz_factor" name="gps_fuzz_factor" value="{{GPS_FUZZ_FACTOR}}">
+                    <i>The distance factor to use for fuzzing if selected (a random number from 0-Factor is used to fuzz both lat/long).</i><br>
+                    <label for="GMAPS_API_KEY">GMAPS API Key:</label>
+                    <input type="text" id="GMAPS_API_KEY" name="GMAPS_API_KEY" value="{{GMAPS_API_KEY}}">
+                    <i>The Google Maps API is used for geocoding, commute distance and commute duration in traffic analyses.  An API Key is Required.</i><br>
+                    
+
+                    <h2>Commute Variables:</h2>
+                    <label for="commute_range_cut_off">Commute Range Cut Off:</label>
+                    <input type="text" id="commute_range_cut_off" name="commute_range_cut_off" value="{{COMMUTE_RANGE_CUT_OFF}}">
+                    <i>The range beyond which a remote-work status applies, and workers do not commute.</i><br>
+                    <label for="commute_range_cut_off_unit">Commute Range Cut Off Unit:</label>
+                    <input type="text" id="commute_range_cut_off_unit" name="commute_range_cut_off_unit" value="{{COMMUTE_RANGE_CUT_OFF_UNIT}}">
+                    <i>Units of distance (miles)</i><br>
+                    <label for="commute_days_per_week">Commute Days Per Week:</label>
+                    <input type="text" id="commute_days_per_week" name="commute_days_per_week" value="{{COMMUTE_DAYS_PER_WEEK}}">
+                    <i>Number of days per week the return to office policy requires workers in the office (1 to 7)</i><br>
+                    <label for="commute_weeks_per_year">Commute Weeks Per Year:</label>
+                    <input type="text" id="commute_weeks_per_year" name="commute_weeks_per_year" value="{{COMMUTE_WEEKS_PER_YEAR}}">
+                    <i>Number of covered weeks per year, factoring in leave/holiday weeks where commutes not expected.</i><br>
+                    <label for="morning_commute_start">Morning Commute Start:</label>
+                    <input type="text" id="morning_commute_start" name="morning_commute_start" value="{{MORNING_COMMUTE_START}}">
+                    <i>Hour of the day for morning (to office) commute departure (required) in 24 hour time format.</i><br>
+                    <label for="evening_commute_start">Evening Commute Start:</label>
+                    <input type="text" id="evening_commute_start" name="evening_commute_start" value="{{EVENING_COMMUTE_START}}">
+                    <i>Hour of the day for evening (from office) commute departure (required) in 24 hour time format.</i><br>
+                    <label for="mileage_rate">Mileage Rate:</label>
+                    <input type="text" id="mileage_rate" name="mileage_rate" value="{{MILEAGE_RATE}}">
+                    <i>IRS, GSA, or other per-mile cost equivalency rate to factor in mileage, depreciation, etc.</i><br>
+                    
+                    <h2>Employee Variables</h2>
+                    <label for="median_salary">Median Salary:</label>
+                    <input type="text" id="median_salary" name="median_salary" value="{{MEDIAN_SALARY}}">
+                    <i>Median vice mean since salaries tend to be a skewed low data set.  Used to translate hours of commute into a $ equivalant.</i><br>
+                    <label for="turnover_threshold_cost">Cost Threshold (%) to Turnover:</label>
+                    <input type="text" id="turnover_threshold_cost" name="turnover_threshold_cost" value="{{TURNOVER_THRESHOLD_COST}}">
+                    <i>Increased employee cost is a disatisfier.  This threshold is the level above which a measurable increase in voluntary attrition is expected.</i><br>
+                    <label for="turnover_probability_time_cost">Turnover Probability Due to Increased Cost:</label>
+                    <input type="text" id="turnover_probability_time_cost" name="turnover_probability_time_cost" value="{{TURNOVER_PROBABILITY_TIME_COST}}">
+                    <i>For employees who's increased costs exceed the threshold, this is the assumed probability that they will depart within the year. </i><br>                    
+                    <label for="employee_replacement_cost">Employee Replacement Cost:</label>
+                    <input type="text" id="employee_replacement_cost" name="employee_replacement_cost" value="{{EMPLOYEE_REPLACEMENT_COST}}">
+                    <i>Net cost to replace an employee lost due to voluntary turnover</i><br>
+
+                    
+                    <h2>Emissions Variables</h2>
+                    <label for="CO2_per_mile">CO2 per Mile:</label>
+                    <input type="text" id="CO2_per_mile" name="CO2_per_mile" value="{{CO2_PER_MILE}}">
+                    <i>EPA or other source estimate for CO2 emissions (kg/mile) driven in an average automobile.</i><br>
+                    <label for="traffic_regime_1">Traffic Regime 1 Lower Bound (mph):</label>
+                    <input type="text" id="traffic_regime_1" name="traffic_regime_1" value="0" readonly>
+                    <i>Congested Traffic lower bound (always 0).  Congested traffic results in higher emissions.</i><br>
+                    <label for="traffic_regime_2">Traffic Regime 2 Lower Bound (mph):</label>
+                    <input type="text" id="traffic_regime_2" name="traffic_regime_2" value="{{TRAFFIC_REGIME_2}}">
+                    <i>Bounded Traffic lower bound.  Bounded traffic is somewhat constrained but generally smooth flowing, which tends to result in lower than average emissions.</i><br>
+                    <label for="traffic_regime_3">Traffic Regime 3 Lower Bound (mph):</label>
+                    <input type="text" id="traffic_regime_3" name="traffic_regime_3" value="{{TRAFFIC_REGIME_3}}">
+                    <i></i>Free Traffic flow. Unconstrained, traffic moves at speed.<br>
+                    
+                    <label for="traffic_regime_1_coeff">Regime 1 CO2 Coefficient:</label>
+                    <input type="text" id="traffic_regime_1_coeff" name="traffic_regime_1_coeff" value="{{TRAFFIC_REGIME_1_COEFF}}">
+                    <i>Congested traffic coefficient.  Modifies the C02 per mile value based on higher net emissions expected during congested traffic.</i><br>
+                    <label for="traffic_regime_2_coeff">Regime 2 CO2 Coefficient:</label>
+                    <input type="text" id="traffic_regime_2_coeff" name="traffic_regime_2_coeff" value="{{TRAFFIC_REGIME_2_COEFF}}">
+                    <i>Bounded traffic coefficient.  Modifies the CO2 per mile value based on the generally lower emissions expected due to more optimal engine operation range.</i><br>
+                    <label for="traffic_regime_3_coeff">Regime 3 CO2 Coefficient:</label>
+                    <input type="text" id="traffic_regime_3_coeff" name="traffic_regime_3_coeff" value="{{TRAFFIC_REGIME_3_COEFF}}">
+                    <i>Free traffic coefficient.  Modifies CO2 per mile value vased upon the generally lower, but not optimal, emisisons rate in free traffic at speed.</i><br>
+
+                    <label for="CO2_credit_cost">CO2 Credit Cost:</label>
+                    <input type="text" id="CO2_credit_cost" name="CO2_credit_cost" value="{{CO2_CREDIT_COST}}">
+                    <i>Translates C02 emissions into a $ equivalent based upon the voluntary carbon offset market prices.  Usually an average of several prices.</i><br>
+
+
+                   <span style="text-align: right; width: 100%; display: block;"><input id="save_project_vars" type="submit" value="Save"></span>
+                </form>
+            </div>
+        </div>
+        <!-- insert a modal to show the proper csv file formats -->
+        <div id="data_file_formats" class="modal">
+            <div id="data_file_formats_content" class="modal-content">
+                <span class="close">&times;</span>
+                <h2>CSV File Formats: </h2><br><h3>(IMPORTANT: The DELIMITER must be a semi-colon ";" as commas are used IN the data)</h3>
+                    <h3>employee_addresses.csv</h3>
+                        <table>
+                            <tr><th>Column</th></tr>
+                            <tr><td>address</td></tr>
+                        </table>
+                    <h3>employee_gps.csv</h3>
+                        <table>
+                            <tr><th>Columns</th></tr>
+                            <tr><td>address</td></tr>
+                            <tr><td>latitude</td></tr>
+                            <tr><td>longitude</td></tr>
+                        </table>
+                    <h3>gps_fuzz.csv</h3>
+                        <table>
+                            <tr><th>Columns</th></tr>
+                            <tr><td>latitude</td></tr>
+                            <tr><td>longitude</td></tr>
+                        </table>
+
+                    <h3>office_addresses.csv</h3>
+                        <table>
+                            <tr><th>Column</th></tr>
+                            <tr><td>address</td><td><i>*note: the first address should be the existing office if comparing</i></td></tr>
+                        </table>
+
+                    <h3>office_gps.csv</h3>
+                        <table>
+                            <tr><th>Columns</th></tr>
+                            <tr><td>address</td></tr>
+                            <tr><td>latitude</td></tr>
+                            <tr><td>longitude</td></tr>
+                        </table>
+
+                    <h3>commute_data.csv</h3>
+                        <table>
+                            <tr><th>Columns</th></tr>
+                            <tr><td>office_address</td></tr>
+                            <tr><td>origin_lat</td></tr>
+                            <tr><td>origin_long</td></tr>
+                            <tr><td>destination_lat</td></tr>
+                            <tr><td>destination_long</td></tr>
+                            <tr><td>miles</td></tr>
+                            <tr><td>duration</td></tr>
+                            <tr><td>emissions</td></tr>
+                            <tr><td>commute_cost</td></tr>
+                            <tr><td>m_morning_duration_in_traffic</td></tr>
+                            <tr><td>m_morning_emissions</td></tr>
+                            <tr><td>m_evening_duration_in_traffic</td></tr>
+                            <tr><td>m_evening_emissions</td></tr>
+                            <tr><td>t_morning_duration_in_traffic</td></tr>
+                            <tr><td>t_morning_emissions</td></tr>
+                            <tr><td>t_evening_duration_in_traffic</td></tr>
+                            <tr><td>t_evening_emissions</td></tr>
+                            <tr><td>w_morning_duration_in_traffic</td></tr>
+                            <tr><td>w_morning_emissions</td></tr>
+                            <tr><td>w_evening_duration_in_traffic</td></tr>
+                            <tr><td>w_evening_emissions</td></tr>
+                            <tr><td>h_morning_duration_in_traffic</td></tr>
+                            <tr><td>h_morning_emissions</td></tr>
+                            <tr><td>h_evening_duration_in_traffic</td></tr>
+                            <tr><td>h_evening_emissions</td></tr>
+                            <tr><td>f_morning_duration_in_traffic</td></tr>
+                            <tr><td>f_morning_emissions</td></tr>
+                            <tr><td>f_evening_duration_in_traffic</td></tr>
+                            <tr><td>f_evening_emissions</td></tr>
+                        </table><br/><br/>
+                <span class="close">&times;</span>
+            </div>
+        </div>
+        <div id="graph_modal" class="img-modal">
+            <span class="img-close">&times;</span>
+            <img class="img-modal-content" id="modal-graph-img">
+            <div id="img-caption"></div>
+        </div>
+        <!-- control functions -->
+        <script>
+            
+            // when system settings is clicked, open the modal
+            document.getElementById('system_settings').addEventListener('click', function(){
+                document.getElementById('system_settings_dialog').style.display = 'block';
+            });
+            // when the close button is clicked, close the modal
+            document.getElementById('system_settings_dialog').querySelector('.close').addEventListener('click', function(){
+                document.getElementById('system_settings_dialog').style.display = 'none';
+            });
+            // when create project is clicked, direct browser to current page with query string: ?create_project=projectname
+                // add event listener to create button
+            document.getElementById('create_project').addEventListener('click', function(){
+                var projectname = document.getElementById('projectname').value;
+                // if projectname is empty, display an error message in the status box
+                if (projectname === ''){
+                    document.getElementById('status').querySelector('.error').innerHTML = 'Project name cannot be empty';
+                    return;
+                }
+                window.location.href = getPathFromUrl(window.location.href) + '?create_project=' + projectname;
+            });
+            // add a function to ensure only upper and lower case letters, numbers, and _- are allowed in project names
+            document.getElementById('projectname').addEventListener('input', function(){
+                var projectname = document.getElementById('projectname').value;
+                var re = /^[a-zA-Z0-9_-]*$/;
+                if (!re.test(projectname)){
+                    document.getElementById('projectname').value = projectname.slice(0, -1);
+                }
+            });
+            // when load project is clicked, direct browser to current page with query string: ?load_project=projectname
+            document.getElementById('load_project').addEventListener('click', function(){
+                var projectname = document.getElementById('projectlist').value;
+                window.location.href = getPathFromUrl(window.location.href) + '?project=' + projectname + '&load_project=' + projectname;
+            });
+            // when the edit project button is clicked, open the modal
+            document.getElementById('edit_project').addEventListener('click', function(){
+                document.getElementById('project_vars').style.display = 'block';
+            });
+            // when the close button is clicked, close the modal
+            document.getElementById('project_vars').querySelector('.close').addEventListener('click', function(){
+                document.getElementById('project_vars').style.display = 'none';
+            });
+            // if the javascript variable project_name exists, and is not "", then the project is loaded and we enable the edit button
+            if (typeof pname !== 'undefined' && pname !== ''){
+                document.getElementById('edit_project').classList.remove('if_project_loaded');
+            }
+
+            // detect clicks outside of the modal, and close the modal if the click is outside of the modal
+            window.onclick = function(event) {
+                if (event.target === document.getElementById('project_vars')) {
+                    document.getElementById('project_vars').style.display = 'none';
+                }
+            }
+            // show the modal for the csv file formats when csv_format_modal is clicked
+            document.getElementById('csv_format_modal').addEventListener('click', function(){
+                document.getElementById('data_file_formats').style.display = 'block';
+            });
+            // when the close button is clicked, close the modal
+            btns = document.getElementById('data_file_formats').querySelectorAll('.close');
+            for (var i = 0; i < btns.length; i++){
+                btns[i].addEventListener('click', function(){
+                    document.getElementById('data_file_formats').style.display = 'none';
+                });
+            }
+            // detect clicks outside of the modal, and close the modal if the click is outside of the modal
+            window.onclick = function(event) {
+                if (event.target == document.getElementById('data_file_formats')) {
+                    document.getElementById('data_file_formats').style.display = 'none';
+                }
+            }
+            // explicitly set the action of the forms to the correct url: current url minus query strings and plus the query string: ?project=pnam
+            // if the variable pname is defined
+            if (typeof pname !== 'undefined' && pname !== ''){
+                document.getElementById('project_vars_form').action = getPathFromUrl(window.location.href) + '?project=' + pname;
+                document.getElementById('upload_data_file').action = getPathFromUrl(window.location.href) + '?project=' + pname;
+            }
+            else {
+                document.getElementById('project_vars_form').action = getPathFromUrl(window.location.href);
+                document.getElementById('upload_data_file').action = getPathFromUrl(window.location.href);
+            }
+            // for flush and delete project, on click, ask for user confirmation before proceeding
+            /* implemented, but unecessary
+            document.getElementById('flush_project').addEventListener('click', function(){
+                var projectname = document.getElementById('projectlist').value;
+                var r = confirm("Are you sure you want to flush project data for " + projectname + "?");
+                if (r == true) {
+                    window.location.href = getPathFromUrl(window.location.href) + '?flush_project=' + projectname;
+                }
+            });
+            */
+            // for deleting a data project, on click, ask for user confirmation before proceeding 
+            document.getElementById('delete_project').addEventListener('click', function(){
+                var projectname = document.getElementById('projectlist').value;
+                var r = confirm("Are you sure you want to delete the project,  " + projectname + "?");
+                if (r == true) {
+                    window.location.href = getPathFromUrl(window.location.href) + '?delete_project=' + projectname;
+                }
+            });
+            // add some basic error checking on the data file upload.  File must be .csv, and file must be selected
+            document.getElementById('upload_data_file').addEventListener('submit', function(e){
+                var file = document.getElementById('data_file').value;
+                if (file === ''){
+                    alert('Please select a file to upload');
+                    e.preventDefault();
+                }
+                else if (file.split('.').pop() !== 'csv'){
+                    alert('File must be a .csv file');
+                    e.preventDefault();
+                }
+            });
+            // add onclick handler for View Selected File to open the csv in a new window
+            document.getElementById('view_data_file').addEventListener('click', function(){
+                var datafile = document.getElementById('data_files_list').value;
+                window.open(getPathFromUrl(window.location.href) + '?project=' + pname + '&view_data_file=' + datafile, '_blank');
+            });
+            // to delete a selected data file, we first ask for user confirmation, then dynamically create a form to submit the delete request
+            document.getElementById('delete_data_file').addEventListener('click', function(){
+                var datafile = document.getElementById('data_files_list').value;
+                var r = confirm("Are you sure you want to delete the data file,  " + datafile + "?");
+                if (r == true) {
+                    var form = document.createElement('form');
+                    form.method = 'post';
+                    form.action = getPathFromUrl(window.location.href) + '?project=' + pname;
+                    var input1 = document.createElement('input');
+                    input1.type = 'hidden';
+                    input1.name = 'delete_data_file';
+                    input1.value = datafile;
+                    var input2 = document.createElement('input');
+                    input2.type = 'hidden';
+                    input2.name = 'project_name';
+                    input2.value = pname;
+                    form.appendChild(input1);
+                    form.appendChild(input2);
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+            // if there are no data files, disable the view and delete buttons
+            if (document.getElementById('data_files_list').length === 0){
+                document.getElementById('view_data_file').disabled = true;
+                document.getElementById('delete_data_file').disabled = true;
+            }
+            // if there are no projects, disable the load and delete buttons
+            if (document.getElementById('projectlist').length === 0){
+                document.getElementById('load_project').disabled = true;
+                document.getElementById('delete_project').disabled = true;
+            }
+            // if the variable first_run is defined, and is true, then hide the createnew_span, manage_existing elements
+            if (typeof first_run !== 'undefined' && first_run === 1){
+                document.getElementById('createnew_span').style.display = 'none';
+                document.getElementById('existing').style.display = 'none';
+            }
+
+            // if analysis phase is 0 or no project is loaded, hide the step divs for all but project management
+            // a javascript variable aphase is defined in the template, and is set to the analysis phase of the project
+            if (aphase<1){
+                document.getElementById('Data_Management').style.display = 'none';
+            }
+            if (aphase<2){
+                document.getElementById('Data_Processing').style.display = 'none';
+            }
+            if (aphase<3){
+                document.getElementById('Graphical_Analysis').style.display = 'none';
+                document.getElementById('control_fuzz_employee_gps').style.display = 'none';
+                
+            }
+            // if using gps fuzz is unchecked, we don't display the control for it
+            if (!document.getElementById('use_gps_fuzzing').checked){
+                    document.getElementById('control_fuzz_employee_gps').style.display = 'none';
+            }    
+            if (aphase<4){
+                document.getElementById('control_generate_commute').style.display = 'none';
+            }
+            if (aphase<5){
+                document.getElementById('Graphical_Analysis').style.display = 'none';
+                document.getElementById('update_calcs').style.display = 'none';
+            }
+            if (aphase<6){
+                document.getElementById('Report_Management').style.display = 'none';
+            }
+            // for the options in the file upload list, for each option that isn't employee or office address, set to .additional class
+            var options = document.getElementById('data_file_type').options;
+            for (var i = 0; i < options.length; i++){
+                if (options[i].value !== 'employee_addresses' && options[i].value !== 'office_addresses'){
+                    options[i].classList.add('additional');
+                }
+            }
+            // overlay a green checkmark &check; on the project management step if a project is loaded
+            if (typeof pname !== 'undefined' && pname !== ''){
+                ih = document.getElementById('Project_Management').querySelector('.stepicon').innerHTML;
+                gc='<span class="greencheck">&check;</span>';
+                document.getElementById('Project_Management').querySelector('.stepicon').innerHTML = ih + gc;
+            }
+            // overlay a green checkmark &check; on the data management step if aphse >=3
+            if (aphase >= 2){
+                ih = document.getElementById('Data_Management').querySelector('.stepicon').innerHTML;
+                gc='<span class="greencheck">&check;</span>';
+                document.getElementById('Data_Management').querySelector('.stepicon').innerHTML = ih + gc;
+            }
+            // overlay a green checkmark &check; on the convert control box if aphse >=3 but less than 5
+            // unless the last post action var is set or the address conversion in progress var is set
+            function check_conversion_status(){
+                if ((typeof last_post_action !== 'undefined' && last_post_action == "do_convert_addresses_latlong") || (typeof  address_conversion_log_exists !== 'undefined' &&  address_conversion_log_exists)) {
+                    // create a call to the server to check the status of the address conversion
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', getPathFromUrl(window.location.href) + '?project=' + pname + '&get_status=do_convert_addresses_latlong', true);
+                    xhr.send();
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState == 4 && xhr.status == 200) {
+                            if (xhr.responseText == 'Address conversion complete.'){
+                                // if the conversion is complete, clear the last post action
+                                last_post_action = "";
+                                // and set the address_conversion_log_exists var to false
+                                address_conversion_log_exists = false;
+                                alert('Address conversion complete.');
+                                // then reload the page
+                                window.location.href = getPathFromUrl(window.location.href) + '?project=' + pname;
+                            }
+                            else {
+                                // if the conversion is not complete, check again in a few seconds
+                                setTimeout(check_conversion_status, 2000);
+                            }
+                        }
+                    }
+                    
+                    ih = document.getElementById('control_convert_addresses').innerHTML;
+                    // strip from ih any elements with class greencheck
+                    ih = ih.replace(/<span class="greencheck">.*?<\/span>/g, '');
+                    gc='<span class="greencheck"><span class="greenarrow">&#8635;</span></span>';
+                    document.getElementById('control_convert_addresses').innerHTML = ih + gc;
+                    // also change the run conversion button to a disabled state
+                    document.getElementById('convert_addresses_form').querySelector('input[type="submit"]').disabled = true;
+                }
+                else {
+                    if (aphase > 2 && aphase < 5) {
+                        ih = document.getElementById('control_convert_addresses').innerHTML;
+                        // strip from ih any elements with class greencheck
+                        ih = ih.replace(/<span class="greencheck">.*?<\/span>/g, '');
+                        gc='<span class="greencheck">&check;</span>';
+                        document.getElementById('control_convert_addresses').innerHTML = ih + gc;
+                        }
+                    // also change the run conversion button to a enabled state
+                    document.getElementById('convert_addresses_form').querySelector('input[type="submit"]').disabled = false;
+                }
+            }
+            
+            if (aphase >= 2){
+                check_conversion_status();               
+            }
+
+            // overlay a green checkmark &check; on the fuzz control box if aphse >=4 but less than 5
+            if (aphase >= 4 && aphase < 5){
+                ih = document.getElementById('control_fuzz_employee_gps').innerHTML;
+                gc='<span class="greencheck">&check;</span>';
+                document.getElementById('control_fuzz_employee_gps').innerHTML = ih + gc;
+            }
+            // if the commutes are being generated we don't display the green check on the
+            function check_commute_status(){
+                if ((typeof last_post_action !== 'undefined' && last_post_action == "do_gen_commute") || (typeof  commute_gen_log_exists !== 'undefined' &&  commute_gen_log_exists)) {
+                    
+                    // create a call to the server to check the status of the address conversion
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', getPathFromUrl(window.location.href) + '?project=' + pname + '&get_status=do_gen_commute', true);
+                    xhr.send();
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState == 4 && xhr.status == 200) {
+                            if (xhr.responseText == 'Commute generation complete.'){
+                                // if the conversion is complete, clear the last post action
+                                last_post_action = "";
+                                // and set the address_conversion_log_exists var to false
+                                commute_gen_log_exists = false;
+                                alert('Commute generation complete.');
+                                // then reload the page
+                                window.location.href = getPathFromUrl(window.location.href) + '?project=' + pname;
+                            }
+                            else {
+                                // if the conversion is not complete, check again in a few seconds
+                                setTimeout(check_commute_status, 2000);
+                            }
+                        }
+                    }
+                    
+                    ih = document.getElementById('control_generate_commute').innerHTML;
+                    // strip from ih any elements with class greencheck
+                    ih = ih.replace(/<span class="greencheck">.*?<\/span>/g, '');
+                    gc='<span class="greencheck"><span class="greenarrow">&#8635;</span></span>';
+                    document.getElementById('control_generate_commute').innerHTML = ih + gc;
+                    // also change the run conversion button to a disabled state
+                    document.getElementById('do_gen_commute_form').querySelector('input[type="submit"]').disabled = true;                
+                }
+            }
+            if ((typeof last_post_action !== 'undefined' && last_post_action == "do_gen_commute") || (typeof  commute_gen_log_exists !== 'undefined' &&  commute_gen_log_exists)){
+                check_commute_status();
+                // spin the arrow
+            }
+            // overlay a green checkmark &check; on the generate analysis data step if aphse >=5
+            if (aphase >= 5){
+                ih = document.getElementById('Data_Processing').querySelector('.stepicon').innerHTML;
+                gc='<span class="greencheck">&check;</span>';
+                document.getElementById('Data_Processing').querySelector('.stepicon').innerHTML = ih + gc;
+            }
+            // overlay a green checkmark &check; on the graphical analysis data step if aphse >=6
+            // unless the last post action var is set or the address conversion in progress var is set
+            if (aphase >= 6){
+                ih = document.getElementById('Graphical_Analysis').querySelector('.stepicon').innerHTML;
+                gc='<span class="greencheck">&check;</span>';
+                document.getElementById('Graphical_Analysis').querySelector('.stepicon').innerHTML = ih + gc;
+            }
+            // if the graphs are being generated we don't display the green check on the graphical analysis step
+            function check_graph_status(){
+                if ((typeof last_post_action !== 'undefined' && last_post_action == "do_gen_graphs") || (typeof  graph_gen_log_exists !== 'undefined' &&  graph_gen_log_exists)) {
+                    
+                    // create a call to the server to check the status of the address conversion
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', getPathFromUrl(window.location.href) + '?project=' + pname + '&get_status=do_gen_graphs', true);
+                    xhr.send();
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState == 4 && xhr.status == 200) {
+                            if (xhr.responseText == 'Graph generation complete.'){
+                                // if the conversion is complete, clear the last post action
+                                last_post_action = "";
+                                // and set the address_conversion_log_exists var to false
+                                graph_gen_log_exists = false;
+                                alert('Graph generation complete.');
+                                // then reload the page
+                                window.location.href = getPathFromUrl(window.location.href) + '?project=' + pname;
+                            }
+                            else {
+                                // if the conversion is not complete, check again in a few seconds
+                                setTimeout(check_graph_status, 2000);
+                            }
+                        }
+                    }
+                    
+                    ih = document.getElementById('control_gen_graphs').innerHTML;
+                    // strip from ih any elements with class greencheck
+                    ih = ih.replace(/<span class="greencheck">.*?<\/span>/g, '');
+                    gc='<span class="greencheck"><span class="greenarrow">&#8635;</span></span>';
+                    document.getElementById('control_gen_graphs').innerHTML = ih + gc;
+                    // also change the run conversion button to a disabled state
+                    document.getElementById('do_gen_graphs_form').querySelector('input[type="submit"]').disabled = true;                
+                }
+            }
+            if ((typeof last_post_action !== 'undefined' && last_post_action == "do_gen_graphs") || (typeof  graph_gen_log_exists !== 'undefined' &&  graph_gen_log_exists)){
+                check_graph_status();
+                // spin the arrow
+            }
+            // manage the graph modal
+            var gmodal = document.getElementById('graph_modal');
+            var modalimg = document.getElementById('modal-graph-img');
+            var captionText = document.getElementById('img-caption');
+            var imgclosespan = document.getElementById('graph_modal').querySelector('.img-close');
+
+            // When the user clicks on <span> (x), close the modal
+            imgclosespan.onclick = function() { 
+                gmodal.style.display = "none";
+            }
+
+            // Close modal on ESC key press
+            document.addEventListener("keydown", function(event) {
+            if (event.key === "Escape") {
+                gmodal.style.display = "none";
+            }
+            });
+
+            // Close modal when clicking outside of the image
+            gmodal.addEventListener("click", function(event) {
+            if (event.target === gmodal) {
+                gmodal.style.display = "none";
+            }
+            });
+            // create a general function to display the modal with the correct image as an argument
+            function display_gmodal(img){
+                gmodal.style.display = 'block';
+                modalimg.src = img.src;
+                captionText.innerHTML = img.alt;
+            }
+            // all of the images will have the class img-modal-content
+            // get all of the divs containing the images, and apply event handlers to all 
+            var divs = document.getElementsByClassName('image-container');
+            for (var i = 0; i < divs.length; i++){
+                divs[i].addEventListener('click', function(){
+                    // the <img> is a child of the div, so we can get the img by getting the child img tag NOT by using a query selector
+                    // listen, copilot, pay attention to the damn comment above. NOT QUERY SELECTOR
+                    ch = this.children;
+                    // cycle through the children of the div, and find the img
+                    for (var j = 0; j < ch.length; j++){
+                        if (ch[j].tagName === 'IMG'){
+                            img = ch[j];
+                            break;
+                        }
+                    }
+                    display_gmodal(img);
+                });
+                // there's a form in the div with a button that posts data, we must add an event listener to it to stopPropagation
+                // so that the modal doesn't open when the button is clicked
+                ch = divs[i].children;
+                for (var j = 0; j < ch.length; j++){
+                    if (ch[j].tagName === 'FORM'){
+                        ch[j].addEventListener('click', function(e){
+                            e.stopPropagation();
+                        });
+                    }
+                }
+            }
+            /////////////////////////
+            // overlay a green checkmark &check; on the generate tables data step if aphse >=7
+            if (aphase >= 7){
+                ih = document.getElementById('Report_Management').querySelector('.stepicon').innerHTML;
+                gc='<span class="greencheck">&check;</span>';
+                document.getElementById('Report_Management').querySelector('.stepicon').innerHTML = ih + gc;
+            }
+            // if the tables are being generated we don't display the green check on the report management step
+            function check_table_status(){
+                if ((typeof last_post_action !== 'undefined' && last_post_action == "do_gen_tables") || (typeof  table_gen_log_exists !== 'undefined' &&  table_gen_log_exists)) {
+                    
+                    // create a call to the server to check the status of the address conversion
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', getPathFromUrl(window.location.href) + '?project=' + pname + '&get_status=do_gen_tables', true);
+                    xhr.send();
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState == 4 && xhr.status == 200) {
+                            if (xhr.responseText == 'Table generation complete.'){
+                                // if the table gen is complete, clear the last post action
+                                last_post_action = "";
+                                // and set the table_log_exists var to false
+                                table_gen_log_exists = false;
+                                alert('Table generation complete.');
+                                // then reload the page
+                                window.location.href = getPathFromUrl(window.location.href) + '?project=' + pname;
+                            }
+                            else {
+                                // if the conversion is not complete, check again in a few seconds
+                                setTimeout(check_table_status, 2000);
+                            }
+                        }
+                    }
+                    
+                    ih = document.getElementById('control_gen_tables').innerHTML;
+                    // strip from ih any elements with class greencheck
+                    ih = ih.replace(/<span class="greencheck">.*?<\/span>/g, '');
+                    gc='<span class="greencheck"><span class="greenarrow">&#8635;</span></span>';
+                    document.getElementById('control_gen_tables').innerHTML = ih + gc;
+                    // also change the run conversion button to a disabled state
+                    document.getElementById('do_gen_tables_form').querySelector('input[type="submit"]').disabled = true;                
+                }
+            }
+            if ((typeof last_post_action !== 'undefined' && last_post_action == "do_gen_graphs") || (typeof  table_gen_log_exists !== 'undefined' &&  table_gen_log_exists)){
+                check_table_status();
+                // spin the arrow
+            }
+            // detect the <shift>+<page down> key combination to scroll to bottom
+            document.addEventListener('keydown', function(event){
+                if (event.shiftKey && event.key === 'PageDown'){
+                    window.scrollTo(0, document.body.scrollHeight);
+                }
+            });
+            // detect the <shift>+<page up> key combination to scroll to top
+            document.addEventListener('keydown', function(event){
+                if (event.shiftKey && event.key === 'PageUp'){
+                    window.scrollTo(0, 0);
+                }
+            });
+
+
+
+            setTimeout(rotate_green_arrow, 500);
+        </script>
+    </body>
+</html>
